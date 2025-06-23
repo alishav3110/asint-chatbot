@@ -117,7 +117,7 @@ from flask import Flask, request, jsonify, send_from_directory
 import os
 import vertexai
 from vertexai.generative_models import GenerativeModel, ChatSession, Content, Part
-from google.cloud import storage, discoveryengine
+from google.cloud import storage
 import logging
 from docx import Document
 
@@ -127,26 +127,30 @@ app = Flask(__name__, static_folder='.', static_url_path='')
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Initialize Vertex AI
-project_id = "black-cirrus-461305-f6"
-location = "us-east4"
-vertexai.init(project=project_id, location=location)
-
-# Initialize services
-storage_client = storage.Client(project=project_id)
-search_client = discoveryengine.SearchServiceClient()
-
-# Tenant configuration
-TENANTS = {
-    "tenant1": {
-        "datastore_id": "tenant1_1750145181743",  # Replace with actual datastore ID
-        "docx_path": "tenant1/digital_wall_chart.docx"
-    },
-    "tenant2": {
-        "datastore_id": "tenant2_1750145004762",  # Replace with actual datastore ID
-        "docx_path": "tenant2/digital_wall_chart.docx"
+# Configuration
+CONFIG = {
+    "project_id": "black-cirrus-461305-f6",
+    "location": "us-east4",
+    "bucket_name": "multi-tenant-ex",
+    "tenants": {
+        "tenant1": {
+            "datastore_id": "your-tenant1-datastore-id",
+            "docx_file": "tenant1/digital_wall_chart.docx",
+            "app_id": "your-tenant1-app-id"
+        },
+        "tenant2": {
+            "datastore_id": "your-tenant2-datastore-id",
+            "docx_file": "tenant2/digital_wall_chart.docx",
+            "app_id": "your-tenant2-app-id"
+        }
     }
 }
+
+# Initialize Vertex AI
+vertexai.init(project=CONFIG["project_id"], location=CONFIG["location"])
+
+# Initialize Cloud Storage client
+storage_client = storage.Client(project=CONFIG["project_id"])
 
 # Load Gemini model
 try:
@@ -155,6 +159,13 @@ try:
 except Exception as e:
     logger.error(f"Failed to load Gemini model: {str(e)}")
     raise
+
+def get_tenant_config(tenant_id):
+    """Get configuration for a specific tenant"""
+    if tenant_id not in CONFIG["tenants"]:
+        logger.error(f"Unknown tenant ID: {tenant_id}")
+        return None
+    return CONFIG["tenants"][tenant_id]
 
 def load_docx_from_storage(bucket_name, file_name):
     try:
@@ -173,41 +184,81 @@ def load_docx_from_storage(bucket_name, file_name):
         logger.error(f"Failed to load DOCX from {bucket_name}/{file_name}: {str(e)}")
         return None
 
-def query_vertex_datastore(tenant_id, query):
-    """Query Vertex AI Search datastore for tenant-specific data"""
-    if tenant_id not in TENANTS:
-        raise ValueError(f"Unknown tenant: {tenant_id}")
-    
-    datastore_id = TENANTS[tenant_id]["datastore_id"]
-    serving_config = f"projects/{project_id}/locations/global/collections/default_collection/dataStores/{datastore_id}/servingConfigs/default_config"
-    
-    try:
-        response = search_client.search(
-            serving_config=serving_config,
-            query=query,
-            query_expansion_spec={
-                "condition": "AUTO"
-            },
-            spell_correction_spec={
-                "mode": "AUTO"
-            }
-        )
-        results = []
-        for result in response.results:
-            results.append({
-                "title": result.document.derived_struct_data.get("title", ""),
-                "snippet": result.document.derived_struct_data.get("snippets", [{}])[0].get("snippet", ""),
-                "link": result.document.derived_struct_data.get("link", "")
-            })
-        return results
-    except Exception as e:
-        logger.error(f"Error querying datastore for tenant {tenant_id}: {str(e)}")
-        return None
-
 @app.route('/')
 def serve_index():
     return send_from_directory('.', 'index.html')
 
 @app.route('/chat', methods=['POST'])
 def chat():
-    data = request.get
+    data = request.get_json()
+    if not data or 'message' not in data:
+        logger.error("Invalid request: No message provided")
+        return jsonify({"error": "Please provide a message"}), 400
+
+    user_message = data['message']
+    tenant_id = request.headers.get("x-tenant-id") or data.get("tenant_id")
+    
+    if not tenant_id:
+        return jsonify({"error": "Missing tenant_id"}), 400
+
+    logger.info(f"Received message from tenant '{tenant_id}': {user_message}")
+
+    # Get tenant-specific configuration
+    tenant_config = get_tenant_config(tenant_id)
+    if not tenant_config:
+        return jsonify({"error": f"Invalid tenant ID: {tenant_id}"}), 400
+
+    # Load tenant-specific DOCX file
+    doc_text = load_docx_from_storage(CONFIG["bucket_name"], tenant_config["docx_file"])
+
+    if not doc_text:
+        return jsonify({"response": f"Error: No document found for tenant '{tenant_id}'"}), 500
+
+    # Build tenant-specific prompt
+    prompt = f"""You are a chatbot for tenant {tenant_id}. 
+    User query: {user_message}
+    
+    Tenant-specific document content:
+    {doc_text}
+    
+    Answer the query based on the document content, specifically for this tenant."""
+
+    # Start Gemini chat session with tenant context
+    try:
+        chat_session = model.start_chat(
+            history=[
+                Content(role="user", parts=[Part.from_text(f"You are a chatbot for {tenant_id}")]),
+                Content(role="model", parts=[Part.from_text(f"Understood. I will respond as a chatbot specifically for {tenant_id}")])
+            ]
+        )
+        logger.info(f"Gemini chat session started for tenant {tenant_id}")
+    except Exception as e:
+        logger.error(f"Failed to start chat: {str(e)}")
+        return jsonify({"response": f"Error starting chat: {str(e)}"}), 500
+
+    # Send message to Gemini
+    try:
+        response = chat_session.send_message(
+            content=prompt,
+            generation_config={
+                "temperature": 0.2,
+                "max_output_tokens": 256,
+                "top_p": 0.8,
+                "top_k": 40
+            }
+        )
+        bot_response = response.text
+        logger.info(f"Gemini response for tenant {tenant_id}: {bot_response}")
+    except Exception as e:
+        logger.error(f"Failed to get Gemini response: {str(e)}")
+        bot_response = f"Error: {str(e)}"
+
+    return jsonify({
+        "response": bot_response,
+        "tenant_id": tenant_id,
+        "source": tenant_config["docx_file"]
+    })
+
+if __name__ == '__main__':
+    port = int(os.environ.get('PORT', 8080))
+    app.run(host='0.0.0.0', port=port)
