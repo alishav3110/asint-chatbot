@@ -1,26 +1,24 @@
-# Use official Python slim image for smaller size   
+# Use official Python slim image
 FROM python:3.9-slim
 
 # Set working directory
 WORKDIR /app
 
-# Copy requirements first to leverage Docker cache
+# Copy requirements first
 COPY requirements.txt .
 
-RUN pip install --no-cache-dir -r requirements.txt
-
-# Install dependencies with error logging and ensure pip is up-to-date
+# Install dependencies (update pip + install from requirements)
 RUN pip install --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt || { echo "Failed to install dependencies"; exit 1; }
+    pip install --no-cache-dir -r requirements.txt
 
-# Copy all files (including app.py and index.html)
+# Copy app files
 COPY . .
 
-# Expose port (Cloud Run requires 8080)
+# Expose port required by Cloud Run
 EXPOSE 8080
 
-# Set environment variable for Cloud Run
+# Set PORT environment variable (used by Gunicorn)
 ENV PORT=8080
 
-# Run the application
-CMD exec python app.py
+# Use Gunicorn to run the Flask app
+CMD ["gunicorn", "--bind", "0.0.0.0:8080", "app:app"]
