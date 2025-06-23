@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 # Initialize Vertex AI
 project_id = "black-cirrus-461305-f6"
-location = "us-central1"
+location = "us-east4"
 vertexai.init(project=project_id, location=location)
 
 # Initialize Cloud Storage client
