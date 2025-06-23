@@ -130,18 +130,18 @@ logger = logging.getLogger(__name__)
 # Configuration
 CONFIG = {
     "project_id": "black-cirrus-461305-f6",
-    "location": "us-east4",
+    "location": "global",
     "bucket_name": "multi-tenant-ex",
     "tenants": {
         "tenant1": {
-            "datastore_id": "your-tenant1-datastore-id",
+            "datastore_id": "tenant1_1750145181743",
             "docx_file": "tenant1/digital_wall_chart.docx",
-            "app_id": "your-tenant1-app-id"
+            "app_id": "multitenantfaqbot_1750145664170"
         },
         "tenant2": {
-            "datastore_id": "your-tenant2-datastore-id",
+            "datastore_id": "tenant2_1750145004762",
             "docx_file": "tenant2/digital_wall_chart.docx",
-            "app_id": "your-tenant2-app-id"
+            "app_id": "multitenantfaqbot_1750145664170"
         }
     }
 }
