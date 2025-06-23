@@ -78,15 +78,16 @@ def chat():
     # Start Gemini chat session
     try:
         chat_session = model.start_chat(
-    history=[
-        Content(role="user", parts=[Part(text="What is the capital of France?")]),
-        Content(role="model", parts=[Part(text="The capital of France is Paris.")])
-          ]
-    )
+            history=[
+                Content(role="user", parts=[Part.from_text("What is the capital of France?")]),
+                Content(role="model", parts=[Part.from_text("The capital of France is Paris.")])
+            ]
+        )
         logger.info("Gemini chat session started")
     except Exception as e:
         logger.error(f"Failed to start chat: {str(e)}")
         return jsonify({"response": f"Error starting chat: {str(e)}"}), 500
+
 
     # Send message to Gemini
     try:
