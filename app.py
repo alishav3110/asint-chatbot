@@ -139,11 +139,11 @@ search_client = discoveryengine.SearchServiceClient()
 # Tenant configuration
 TENANTS = {
     "tenant1": {
-        "datastore_id": "tenant1-datastore",  # Replace with actual datastore ID
+        "datastore_id": "tenant1_1750145181743",  # Replace with actual datastore ID
         "docx_path": "tenant1/digital_wall_chart.docx"
     },
     "tenant2": {
-        "datastore_id": "tenant2-datastore",  # Replace with actual datastore ID
+        "datastore_id": "tenant2_1750145004762",  # Replace with actual datastore ID
         "docx_path": "tenant2/digital_wall_chart.docx"
     }
 }
