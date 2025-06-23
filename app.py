@@ -130,7 +130,7 @@ logger = logging.getLogger(__name__)
 # Configuration
 CONFIG = {
     "project_id": "black-cirrus-461305-f6",
-    "location": "global",
+    "location": "us-central1",
     "bucket_name": "multi-tenant-ex",
     "tenants": {
         "tenant1": {
@@ -154,7 +154,7 @@ storage_client = storage.Client(project=CONFIG["project_id"])
 
 # Load Gemini model
 try:
-    model = GenerativeModel("gemini-1.5-pro")
+    model = GenerativeModel("gemini-pro")
     logger.info("Successfully loaded Gemini model: gemini-1.5-pro")
 except Exception as e:
     logger.error(f"Failed to load Gemini model: {str(e)}")
