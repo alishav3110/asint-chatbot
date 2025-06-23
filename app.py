@@ -1,7 +1,7 @@
 from flask import Flask, request, jsonify, send_from_directory
 import os
 import vertexai
-from vertexai.generative_models import GenerativeModel
+from vertexai.generative_models import GenerativeModel, ChatSession, Content, Part
 from google.cloud import storage
 import logging
 from docx import Document
@@ -78,11 +78,11 @@ def chat():
     # Start Gemini chat session
     try:
         chat_session = model.start_chat(
-            history=[
-                {"role": "user", "parts": ["What is the capital of France?"]},
-                {"role": "model", "parts": ["The capital of France is Paris."]}
-            ]
-        )
+    history=[
+        Content(role="user", parts=[Part(text="What is the capital of France?")]),
+        Content(role="model", parts=[Part(text="The capital of France is Paris.")])
+          ]
+    ))
         logger.info("Gemini chat session started")
     except Exception as e:
         logger.error(f"Failed to start chat: {str(e)}")
