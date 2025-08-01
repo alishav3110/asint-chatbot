@@ -1,4 +1,4 @@
-# from flask import Flask, request, jsonify, send_from_directory
+# from flask import Flask, request, jsonify, send_from_directory 
 # import os
 # import vertexai
 # from vertexai.generative_models import GenerativeModel, ChatSession, Content, Part
