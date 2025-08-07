@@ -6,7 +6,7 @@
 # import logging
 # from docx import Document
 
-# app = Flask(__name__, static_folder='.', static_url_path='')
+# app = Flask(__name__, static_folder='.', static_url_path='') 
 
 # # Set up logging
 # logging.basicConfig(level=logging.INFO)
